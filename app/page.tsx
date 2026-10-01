@@ -1,5 +1,5 @@
-import { MarketingPage } from '@/components/landing/marketing-page'
+import { redirect } from "next/navigation";
 
-export default function Page() {
-  return <MarketingPage />
+export default function Home() {
+  redirect("/login"); // ya fir "/dashboard" agar direct app par jana ho
 }
