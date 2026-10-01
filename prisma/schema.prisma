@@ -1,0 +1,121 @@
+// Prisma schema for Hostlink — Project Management
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ─── User ────────────────────────────────────────────────────────────────────
+
+model User {
+  id        String   @id @default(cuid())
+  name      String
+  email     String   @unique
+  role      String
+  color     String
+  createdAt DateTime @default(now())
+
+  // Relations
+  memberships ProjectMember[]
+  tasks       Task[]          @relation("TaskAssignee")
+  comments    Comment[]       @relation("CommentAuthor")
+  events      TaskEvent[]     @relation("EventUser")
+}
+
+// ─── Project ─────────────────────────────────────────────────────────────────
+
+model Project {
+  id          String    @id @default(cuid())
+  name        String
+  description String?
+  color       String
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime?
+
+  // Relations
+  members    ProjectMember[]
+  tasks      Task[]
+  taskEvents TaskEvent[]     @relation("ProjectEvents")
+}
+
+// ─── ProjectMember (join table) ──────────────────────────────────────────────
+
+model ProjectMember {
+  id        String @id @default(cuid())
+  projectId String
+  userId    String
+
+  project Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([projectId, userId])
+}
+
+// ─── Task ────────────────────────────────────────────────────────────────────
+
+model Task {
+  id          String    @id @default(cuid())
+  key         String    @unique
+  projectId   String
+  title       String
+  description String?
+  assigneeId  String
+  priority    String // urgent | high | normal
+  status      String // backlog | in_progress | review | done
+  dueDate     String
+  createdAt   DateTime  @default(now())
+  movedAt     DateTime  @default(now())
+  completedAt DateTime?
+
+  // Relations
+  project  Project     @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  assignee User        @relation("TaskAssignee", fields: [assigneeId], references: [id])
+  comments Comment[]
+  events   TaskEvent[] @relation("TaskEvents")
+
+  // Indexes
+  @@index([projectId, status])
+  @@index([assigneeId])
+}
+
+// ─── Comment ─────────────────────────────────────────────────────────────────
+
+model Comment {
+  id        String   @id @default(cuid())
+  taskId    String
+  authorId  String
+  body      String
+  createdAt DateTime @default(now())
+
+  // Relations
+  task   Task @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  author User @relation("CommentAuthor", fields: [authorId], references: [id])
+
+  // Indexes
+  @@index([taskId])
+}
+
+// ─── TaskEvent ───────────────────────────────────────────────────────────────
+
+model TaskEvent {
+  id         String   @id @default(cuid())
+  taskId     String
+  projectId  String
+  userId     String
+  fromStatus String?
+  toStatus   String
+  createdAt  DateTime @default(now())
+
+  // Relations
+  task    Task    @relation("TaskEvents", fields: [taskId], references: [id], onDelete: Cascade)
+  project Project @relation("ProjectEvents", fields: [projectId], references: [id], onDelete: Cascade)
+  user    User    @relation("EventUser", fields: [userId], references: [id])
+
+  // Indexes
+  @@index([projectId, createdAt])
+  @@index([taskId])
+}
